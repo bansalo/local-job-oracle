@@ -1,5 +1,5 @@
 
-import { encode } from 'https://deno.land/std@0.224.0/encoding/base64.ts'
+import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts'
 
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')
 const GEMINI_API_URL_BASE = `https://generativelanguage.googleapis.com/v1beta/models`
@@ -17,7 +17,7 @@ export async function extractTextFromResume(resumeUrl: string): Promise<string |
       throw new Error(`Failed to download resume. Status: ${fileResponse.status}`);
     }
     const fileBuffer = await fileResponse.arrayBuffer();
-    const fileBase64 = encode(new Uint8Array(fileBuffer));
+    const fileBase64 = encodeBase64(new Uint8Array(fileBuffer));
 
     const extension = resumeUrl.split('.').pop()?.toLowerCase();
     let mimeType;
