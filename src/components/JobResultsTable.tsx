@@ -29,7 +29,17 @@ function toCSV(jobs: Job[]): string {
   return [headers.join(","), ...rows].join("\n");
 }
 
-export default function JobResultsTable({ jobs }: { jobs: Job[] }) {
+type Props = {
+  jobs: Job[];
+  density?: "compact" | "comfortable";
+  visibleColumns?: string[];
+};
+
+export default function JobResultsTable({ 
+  jobs, 
+  density = "comfortable",
+  visibleColumns = ["title", "company", "location", "remote", "compensation", "source", "score"]
+}: Props) {
   const [exporting, setExporting] = useState(false);
 
   const handleExport = () => {
@@ -47,11 +57,14 @@ export default function JobResultsTable({ jobs }: { jobs: Job[] }) {
     }, 1200);
   };
 
+  const isCompact = density === "compact";
+  const cellPadding = isCompact ? "px-2 py-1" : "px-3 py-2";
+
   return (
     <div className="flex-1 flex flex-col">
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm text-muted-foreground">
-          {jobs.length} job(s) found
+          {jobs.length} job(s) on this page
         </span>
         <Button size="sm" onClick={handleExport} disabled={jobs.length === 0 || exporting}>
           {exporting ? "Exporting..." : "Export to CSV"}
@@ -61,13 +74,27 @@ export default function JobResultsTable({ jobs }: { jobs: Job[] }) {
         <table className="min-w-full border-separate border-spacing-0">
           <thead className="bg-muted">
             <tr>
-              <th className="px-3 py-2 sticky left-0 bg-muted text-left">Title</th>
-              <th className="px-3 py-2 text-left">Company</th>
-              <th className="px-3 py-2 text-left">Location</th>
-              <th className="px-3 py-2 text-left">Remote</th>
-              <th className="px-3 py-2 text-left">Comp.</th>
-              <th className="px-3 py-2 text-left">Source</th>
-              <th className="px-3 py-2 text-left">Score</th>
+              {visibleColumns.includes("title") && (
+                <th className={`${cellPadding} sticky left-0 bg-muted text-left`}>Title</th>
+              )}
+              {visibleColumns.includes("company") && (
+                <th className={`${cellPadding} text-left`}>Company</th>
+              )}
+              {visibleColumns.includes("location") && (
+                <th className={`${cellPadding} text-left`}>Location</th>
+              )}
+              {visibleColumns.includes("remote") && (
+                <th className={`${cellPadding} text-left`}>Remote</th>
+              )}
+              {visibleColumns.includes("compensation") && (
+                <th className={`${cellPadding} text-left`}>Comp.</th>
+              )}
+              {visibleColumns.includes("source") && (
+                <th className={`${cellPadding} text-left`}>Source</th>
+              )}
+              {visibleColumns.includes("score") && (
+                <th className={`${cellPadding} text-left`}>Score</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -78,26 +105,40 @@ export default function JobResultsTable({ jobs }: { jobs: Job[] }) {
                   idx % 2 ? "bg-white dark:bg-background" : "bg-muted"
                 }`}
               >
-                <td className="px-3 py-2 font-medium sticky left-0 bg-inherit z-10">
-                  <a href={job.link} target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:underline">
-                    {job.title}
-                  </a>
-                </td>
-                <td className="px-3 py-2">{job.company}</td>
-                <td className="px-3 py-2">{job.location}</td>
-                <td className="px-3 py-2">{job.remote ? "Yes" : "No"}</td>
-                <td className="px-3 py-2">{job.compensation || "--"}</td>
-                <td className="px-3 py-2">{job.source}</td>
-                <td className="px-3 py-2">
-                  <span className={`inline-block rounded bg-blue-600/90 text-white px-2 font-semibold text-xs`}>
-                    {job.score}
-                  </span>
-                </td>
+                {visibleColumns.includes("title") && (
+                  <td className={`${cellPadding} font-medium sticky left-0 bg-inherit z-10`}>
+                    <a href={job.link} target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:underline">
+                      {job.title}
+                    </a>
+                  </td>
+                )}
+                {visibleColumns.includes("company") && (
+                  <td className={cellPadding}>{job.company}</td>
+                )}
+                {visibleColumns.includes("location") && (
+                  <td className={cellPadding}>{job.location}</td>
+                )}
+                {visibleColumns.includes("remote") && (
+                  <td className={cellPadding}>{job.remote ? "Yes" : "No"}</td>
+                )}
+                {visibleColumns.includes("compensation") && (
+                  <td className={cellPadding}>{job.compensation || "--"}</td>
+                )}
+                {visibleColumns.includes("source") && (
+                  <td className={cellPadding}>{job.source}</td>
+                )}
+                {visibleColumns.includes("score") && (
+                  <td className={cellPadding}>
+                    <span className={`inline-block rounded bg-blue-600/90 text-white px-2 font-semibold text-xs`}>
+                      {job.score}
+                    </span>
+                  </td>
+                )}
               </tr>
             ))}
             {jobs.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-3 py-10 text-center text-muted-foreground">
+                <td colSpan={visibleColumns.length} className={`${cellPadding} text-center text-muted-foreground`}>
                   No job matches found. Adjust your preferences or try again!
                 </td>
               </tr>
