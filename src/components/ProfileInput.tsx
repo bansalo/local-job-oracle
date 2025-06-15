@@ -1,5 +1,9 @@
+
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 type Props = { 
   onSubmit: (profile: any) => void;
@@ -16,10 +20,52 @@ const DEFAULTS = {
 
 export default function ProfileInput({ onSubmit, isLoading }: Props) {
   const { register, handleSubmit, reset } = useForm({ defaultValues: DEFAULTS });
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
-  function onFormSubmit(profile: any) {
-    onSubmit(profile);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setResumeFile(e.target.files[0]);
+    } else {
+      setResumeFile(null);
+    }
+  };
+
+  async function onFormSubmit(profile: any) {
+    if (isLoading || isUploading) return;
+
+    let resumeUrl = null;
+    if (resumeFile) {
+      setIsUploading(true);
+      try {
+        const fileName = `${Date.now()}-${resumeFile.name}`;
+        const { data, error } = await supabase.storage
+          .from('resumes')
+          .upload(`public/${fileName}`, resumeFile);
+
+        if (error) {
+          throw error;
+        }
+
+        const { data: urlData } = supabase.storage
+          .from('resumes')
+          .getPublicUrl(data.path);
+        
+        resumeUrl = urlData.publicUrl;
+        toast.success("Resume uploaded successfully!");
+      } catch (error: any) {
+        console.error("Error uploading resume:", error);
+        toast.error(`Resume upload failed: ${error.message}`);
+        setIsUploading(false);
+        return; // Don't submit if upload fails
+      } finally {
+        setIsUploading(false);
+      }
+    }
+    
+    onSubmit({ ...profile, resumeUrl });
   }
+
   return (
     <form
       className="flex flex-col gap-4"
@@ -92,18 +138,20 @@ export default function ProfileInput({ onSubmit, isLoading }: Props) {
       </div>
       <div>
         <label className="block font-semibold text-sm mb-1" htmlFor="resume">
-          Resume (Not uploaded - demo)
+          Upload Resume
         </label>
         <input
           type="file"
           id="resume"
-          disabled
-          className="w-full block rounded-md border bg-muted text-muted placeholder:text-muted-foreground px-3 py-2 text-sm"
+          onChange={handleFileChange}
+          className="w-full block rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+          accept=".pdf,.doc,.docx,.txt"
         />
-        <span className="text-xs text-muted-foreground">(Resume parsing available in full version)</span>
+        {resumeFile && <span className="text-xs text-muted-foreground mt-1 block">Selected: {resumeFile.name}</span>}
+        <span className="text-xs text-muted-foreground">(PDF, DOC, DOCX, TXT formats)</span>
       </div>
-      <Button disabled={isLoading} className="mt-2 w-full">
-        {isLoading ? "Analyzing jobs..." : "Find Matched Jobs"}
+      <Button disabled={isLoading || isUploading} className="mt-2 w-full">
+        {isUploading ? "Uploading resume..." : isLoading ? "Analyzing jobs..." : "Find Matched Jobs"}
       </Button>
     </form>
   );
