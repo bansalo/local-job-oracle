@@ -1,3 +1,4 @@
+
 import Header from "@/components/Header";
 import ProfileInput from "@/components/ProfileInput";
 import JobResultsTable from "@/components/JobResultsTable";
@@ -7,12 +8,17 @@ import SearchBar from "@/components/SearchBar";
 import JobCard from "@/components/JobCard";
 import JobPagination from "@/components/JobPagination";
 import LLMConfig from "@/components/LLMConfig";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Job, MOCK_JOBS } from "@/components/MockData";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
+  const { session, signOut, loading } = useAuth();
+  const navigate = useNavigate();
+
   const [filters, setFilters] = useState({});
   const [filteredJobs, setFilteredJobs] = useState<Job[]>(MOCK_JOBS);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -33,6 +39,12 @@ const Index = () => {
   const [visibleColumns, setVisibleColumns] = useState([
     "title", "company", "location", "remote", "compensation", "source", "score"
   ]);
+
+  useEffect(() => {
+    if (!loading && !session) {
+      navigate('/auth');
+    }
+  }, [session, loading, navigate]);
 
   // Apply intelligent filtering (simulated)
   const handleProfileSubmit = (profile: any) => {
@@ -88,6 +100,14 @@ const Index = () => {
   const endIndex = startIndex + itemsPerPage;
   const currentPageJobs = filteredJobs.slice(startIndex, endIndex);
 
+  if (loading || !session) {
+    return (
+      <div className="flex items-center justify-center min-h-screen w-full bg-background">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background w-full flex flex-col">
       <Header />
@@ -126,6 +146,17 @@ const Index = () => {
             )}
             {sidebarCollapsed && (
               <JobFilters onFiltersChange={setJobFilters} isCollapsed={true} />
+            )}
+          </div>
+          <div className="p-4 border-t mt-auto">
+            {sidebarCollapsed ? (
+              <Button onClick={signOut} variant="ghost" size="icon" className="w-full">
+                <LogOut className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button onClick={signOut} variant="outline" className="w-full">
+                Sign Out
+              </Button>
             )}
           </div>
         </div>
