@@ -1,29 +1,29 @@
-
 import { useState } from "react";
-import { Job } from "./MockData";
 import { Button } from "@/components/ui/button";
+
+export type Job = {
+  id: string;
+  title: string;
+  company: string;
+  location: string | null;
+  link: string;
+};
 
 function toCSV(jobs: Job[]): string {
   const headers = [
     "Title",
     "Company",
     "Location",
-    "Remote",
-    "Est. Compensation",
-    "Source",
-    "Relevance Score",
+    "Link",
   ];
   const rows = jobs.map(j =>
     [
       j.title,
       j.company,
-      j.location,
-      j.remote ? "Yes" : "No",
-      j.compensation || "",
-      j.source,
-      j.score,
+      j.location || "N/A",
+      j.link,
     ]
-      .map(field => `"${field}"`)
+      .map(field => `"${String(field)}"` )
       .join(",")
   );
   return [headers.join(","), ...rows].join("\n");
@@ -38,7 +38,7 @@ type Props = {
 export default function JobResultsTable({ 
   jobs, 
   density = "comfortable",
-  visibleColumns = ["title", "company", "location", "remote", "compensation", "source", "score"]
+  visibleColumns = ["title", "company", "location"]
 }: Props) {
   const [exporting, setExporting] = useState(false);
 
@@ -64,7 +64,7 @@ export default function JobResultsTable({
     <div className="flex-1 flex flex-col">
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm text-muted-foreground">
-          {jobs.length} job(s) on this page
+          {jobs.length} job(s) found
         </span>
         <Button size="sm" onClick={handleExport} disabled={jobs.length === 0 || exporting}>
           {exporting ? "Exporting..." : "Export to CSV"}
@@ -82,18 +82,6 @@ export default function JobResultsTable({
               )}
               {visibleColumns.includes("location") && (
                 <th className={`${cellPadding} text-left`}>Location</th>
-              )}
-              {visibleColumns.includes("remote") && (
-                <th className={`${cellPadding} text-left`}>Remote</th>
-              )}
-              {visibleColumns.includes("compensation") && (
-                <th className={`${cellPadding} text-left`}>Comp.</th>
-              )}
-              {visibleColumns.includes("source") && (
-                <th className={`${cellPadding} text-left`}>Source</th>
-              )}
-              {visibleColumns.includes("score") && (
-                <th className={`${cellPadding} text-left`}>Score</th>
               )}
             </tr>
           </thead>
@@ -116,30 +104,14 @@ export default function JobResultsTable({
                   <td className={cellPadding}>{job.company}</td>
                 )}
                 {visibleColumns.includes("location") && (
-                  <td className={cellPadding}>{job.location}</td>
-                )}
-                {visibleColumns.includes("remote") && (
-                  <td className={cellPadding}>{job.remote ? "Yes" : "No"}</td>
-                )}
-                {visibleColumns.includes("compensation") && (
-                  <td className={cellPadding}>{job.compensation || "--"}</td>
-                )}
-                {visibleColumns.includes("source") && (
-                  <td className={cellPadding}>{job.source}</td>
-                )}
-                {visibleColumns.includes("score") && (
-                  <td className={cellPadding}>
-                    <span className={`inline-block rounded bg-blue-600/90 text-white px-2 font-semibold text-xs`}>
-                      {job.score}
-                    </span>
-                  </td>
+                  <td className={cellPadding}>{job.location || 'N/A'}</td>
                 )}
               </tr>
             ))}
             {jobs.length === 0 && (
               <tr>
-                <td colSpan={visibleColumns.length} className={`${cellPadding} text-center text-muted-foreground`}>
-                  No job matches found. Adjust your preferences or try again!
+                <td colSpan={visibleColumns.length} className={`${cellPadding} text-center text-muted-foreground h-24`}>
+                  No jobs found. Scrape some companies to get started!
                 </td>
               </tr>
             )}

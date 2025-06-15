@@ -8,6 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { Loader2, Link, Search, XCircle, FileText } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import JobResultsTable, { type Job as DisplayedJob } from "./JobResultsTable";
+import { Separator } from "@/components/ui/separator";
 
 const fetchCompanies = async () => {
   const { data, error } = await supabase.from("companies").select("*").order("created_at", { ascending: false });
@@ -33,6 +35,19 @@ const CompanyManager = () => {
   const { data: companies, isLoading, isError } = useQuery({
     queryKey: ["companies"],
     queryFn: fetchCompanies,
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
+
+  const { data: jobs, isLoading: isLoadingJobs, isError: isErrorJobs } = useQuery({
+    queryKey: ["jobs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("jobs")
+        .select("id, title, job_url, location, companies(name)")
+        .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
+      return data;
+    },
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
@@ -114,6 +129,14 @@ const CompanyManager = () => {
         company.status === 'scraping'
     );
   }
+
+  const formattedJobs: DisplayedJob[] = jobs?.map(job => ({
+    id: job.id,
+    title: job.title,
+    company: job.companies?.name || 'Unknown',
+    location: job.location,
+    link: job.job_url,
+  })) || [];
 
   return (
     <Card>
@@ -210,6 +233,11 @@ const CompanyManager = () => {
                     )}
                 </TableBody>
             </Table>
+        </div>
+        <Separator className="my-8" />
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Scraped Jobs</h2>
+            <JobResultsTable jobs={formattedJobs} />
         </div>
       </CardContent>
     </Card>
