@@ -11,6 +11,7 @@ import { useState, useMemo } from "react";
 import { Job, MOCK_JOBS } from "@/components/MockData";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import CompanyManager from "@/components/CompanyManager";
 
 const Index = () => {
   const [filters, setFilters] = useState({});
@@ -109,6 +110,7 @@ const Index = () => {
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {!sidebarCollapsed && (
               <>
+                <CompanyManager />
                 <ProfileInput onSubmit={handleProfileSubmit} />
                 <LLMConfig />
                 <JobFilters onFiltersChange={setJobFilters} isCollapsed={false} />
