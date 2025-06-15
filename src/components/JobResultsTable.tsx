@@ -16,6 +16,8 @@ export type Job = {
   link: string;
   score?: number;
   reasoning?: string;
+  remote?: boolean;
+  source?: string;
 };
 
 function toCSV(jobs: Job[]): string {
