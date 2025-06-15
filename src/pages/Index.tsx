@@ -1,93 +1,73 @@
+
 import Header from "@/components/Header";
 import ProfileInput from "@/components/ProfileInput";
 import JobResultsTable from "@/components/JobResultsTable";
-import JobFilters from "@/components/JobFilters";
-import LayoutControls from "@/components/LayoutControls";
-import SearchBar from "@/components/SearchBar";
 import JobCard from "@/components/JobCard";
 import JobPagination from "@/components/JobPagination";
 import LLMConfig from "@/components/LLMConfig";
-import { useState, useMemo } from "react";
-import { Job, MOCK_JOBS } from "@/components/MockData";
+import { useState } from "react";
+import type { Job } from "@/components/JobResultsTable";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import CompanyManager from "@/components/CompanyManager";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const Index = () => {
-  const [filters, setFilters] = useState({});
-  const [filteredJobs, setFilteredJobs] = useState<Job[]>(MOCK_JOBS);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [jobFilters, setJobFilters] = useState({
-    jobTypes: [],
-    experienceLevels: [],
-    companySizes: [],
-    datePosted: "Any time",
-    sortBy: "Relevance"
-  });
+  const [matchedJobs, setMatchedJobs] = useState<Job[] | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   
   // Layout state
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
   const [density, setDensity] = useState<"compact" | "comfortable">("comfortable");
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
-  const [visibleColumns, setVisibleColumns] = useState([
-    "title", "company", "location", "remote", "compensation", "source", "score"
-  ]);
 
-  // Apply intelligent filtering (simulated)
-  const handleProfileSubmit = (profile: any) => {
-    setFilters(profile);
-    let jobs = MOCK_JOBS;
-    if (profile.preferredTitle) {
-      jobs = jobs.filter(j =>
-        j.title.toLowerCase().includes(profile.preferredTitle.toLowerCase())
-      );
-    }
-    if (profile.location) {
-      jobs = jobs.filter(j =>
-        j.location.toLowerCase().includes(profile.location.toLowerCase())
-      );
-    }
-    if (profile.remotePreference && profile.remotePreference !== "Any") {
-      jobs = jobs.filter(j =>
-        j.remote === (profile.remotePreference === "Remote")
-      );
-    }
-    setFilteredJobs(jobs);
+  // Apply intelligent filtering
+  const handleProfileSubmit = async (profile: any) => {
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+    setMatchedJobs(null);
     setCurrentPage(1);
-  };
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    if (!query.trim()) {
-      setFilteredJobs(MOCK_JOBS);
-      return;
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-jobs', {
+        body: { profile },
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+      
+      const formattedJobs: Job[] = data.jobs.map((job: any) => ({
+        id: job.id,
+        title: job.title,
+        company: job.companies?.name || 'Unknown',
+        location: job.location,
+        link: job.job_url,
+        score: job.ai_analysis.score,
+        reasoning: job.ai_analysis.reasoning
+      }));
+
+      setMatchedJobs(formattedJobs);
+      toast.success(`${formattedJobs.length} matching jobs found!`);
+    } catch (error: any) {
+      console.error("Error analyzing jobs:", error);
+      toast.error(`Analysis failed: ${error.message}`);
+      setAnalysisError(error.message);
+    } finally {
+      setIsAnalyzing(false);
     }
-    
-    const searchResults = MOCK_JOBS.filter(job =>
-      job.title.toLowerCase().includes(query.toLowerCase()) ||
-      job.company.toLowerCase().includes(query.toLowerCase()) ||
-      job.location.toLowerCase().includes(query.toLowerCase())
-    );
-    setFilteredJobs(searchResults);
-    setCurrentPage(1);
   };
 
-  const handleColumnToggle = (column: string) => {
-    if (column === "title") return; // Title is always visible
-    setVisibleColumns(prev =>
-      prev.includes(column)
-        ? prev.filter(col => col !== column)
-        : [...prev, column]
-    );
-  };
+  const jobsToDisplay = matchedJobs || [];
 
   // Pagination calculations
-  const totalPages = Math.ceil(filteredJobs.length / itemsPerPage);
+  const totalPages = Math.ceil(jobsToDisplay.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentPageJobs = filteredJobs.slice(startIndex, endIndex);
+  const currentPageJobs = jobsToDisplay.slice(startIndex, endIndex);
 
   return (
     <div className="min-h-screen bg-background w-full flex flex-col">
@@ -111,85 +91,87 @@ const Index = () => {
             {!sidebarCollapsed && (
               <>
                 <CompanyManager />
-                <ProfileInput onSubmit={handleProfileSubmit} />
+                <ProfileInput onSubmit={handleProfileSubmit} isLoading={isAnalyzing} />
                 <LLMConfig />
-                <JobFilters onFiltersChange={setJobFilters} isCollapsed={false} />
-                <LayoutControls
-                  viewMode={viewMode}
-                  density={density}
-                  itemsPerPage={itemsPerPage}
-                  onViewModeChange={setViewMode}
-                  onDensityChange={setDensity}
-                  onItemsPerPageChange={setItemsPerPage}
-                  visibleColumns={visibleColumns}
-                  onColumnToggle={handleColumnToggle}
-                />
               </>
-            )}
-            {sidebarCollapsed && (
-              <JobFilters onFiltersChange={setJobFilters} isCollapsed={true} />
             )}
           </div>
         </div>
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col p-6">
-          {/* Search Bar */}
-          <div className="mb-6">
-            <SearchBar onSearch={handleSearch} />
-          </div>
-
-          {/* Results Section */}
           <div className="bg-card border rounded-xl p-6 shadow-lg flex flex-col flex-1">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold tracking-tight">
-                Top Job Opportunities
+                Matched Job Opportunities
               </h2>
-              <span className="text-sm text-muted-foreground">
-                {filteredJobs.length} job(s) found
-              </span>
+              {matchedJobs && (
+                <span className="text-sm text-muted-foreground">
+                  {matchedJobs.length} job(s) found
+                </span>
+              )}
             </div>
 
             {/* Job Results */}
             <div className="flex-1">
-              {viewMode === "table" ? (
-                <JobResultsTable 
-                  jobs={currentPageJobs} 
-                  density={density}
-                  visibleColumns={visibleColumns}
-                />
+              {isAnalyzing ? (
+                <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                  <Loader2 className="h-8 w-8 animate-spin mb-4" />
+                  <p>Analyzing jobs against your profile...</p>
+                  <p className="text-xs mt-1">(This may take a moment)</p>
+                </div>
+              ) : analysisError ? (
+                <div className="flex items-center justify-center h-full text-destructive">
+                  <p>Error: {analysisError}</p>
+                </div>
+              ) : matchedJobs === null ? (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <p className="text-center">
+                    Enter your profile and click "Find Matched Jobs" to see personalized results.
+                  </p>
+                </div>
               ) : (
-                <div className={`grid gap-4 ${
-                  density === "compact" 
-                    ? "grid-cols-1 lg:grid-cols-2 xl:grid-cols-3" 
-                    : "grid-cols-1 lg:grid-cols-2"
-                }`}>
-                  {currentPageJobs.map((job) => (
-                    <JobCard 
-                      key={job.id} 
-                      job={job} 
+                <>
+                  {viewMode === "table" ? (
+                    <JobResultsTable 
+                      jobs={currentPageJobs} 
                       density={density}
+                      visibleColumns={["title", "company", "location", "score"]}
                     />
-                  ))}
-                  {currentPageJobs.length === 0 && (
-                    <div className="col-span-full text-center py-10 text-muted-foreground">
-                      No job matches found. Adjust your preferences or try again!
+                  ) : (
+                    <div className={`grid gap-4 ${
+                      density === "compact" 
+                        ? "grid-cols-1 lg:grid-cols-2 xl:grid-cols-3" 
+                        : "grid-cols-1 lg:grid-cols-2"
+                    }`}>
+                      {currentPageJobs.map((job) => (
+                        <JobCard 
+                          key={job.id} 
+                          job={job} 
+                          density={density}
+                        />
+                      ))}
                     </div>
                   )}
-                </div>
+
+                  {jobsToDisplay.length === 0 && !isAnalyzing && (
+                     <div className="col-span-full text-center py-10 text-muted-foreground">
+                       No job matches found. Try adjusting your profile preferences!
+                     </div>
+                   )}
+                  
+                  {jobsToDisplay.length > 0 && (
+                    <div className="mt-6 flex justify-center">
+                      <JobPagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                      />
+                    </div>
+                  )}
+                </>
               )}
             </div>
-
-            {/* Pagination */}
-            {filteredJobs.length > 0 && (
-              <div className="mt-6 flex justify-center">
-                <JobPagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={setCurrentPage}
-                />
-              </div>
-            )}
           </div>
         </div>
       </main>

@@ -1,5 +1,12 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export type Job = {
   id: string;
@@ -7,6 +14,8 @@ export type Job = {
   company: string;
   location: string | null;
   link: string;
+  score?: number;
+  reasoning?: string;
 };
 
 function toCSV(jobs: Job[]): string {
@@ -15,6 +24,8 @@ function toCSV(jobs: Job[]): string {
     "Company",
     "Location",
     "Link",
+    "Match Score",
+    "Reasoning",
   ];
   const rows = jobs.map(j =>
     [
@@ -22,8 +33,10 @@ function toCSV(jobs: Job[]): string {
       j.company,
       j.location || "N/A",
       j.link,
+      j.score !== undefined ? `${j.score}%` : 'N/A',
+      j.reasoning || 'N/A',
     ]
-      .map(field => `"${String(field)}"` )
+      .map(field => `"${String(field).replace(/"/g, '""')}"` )
       .join(",")
   );
   return [headers.join(","), ...rows].join("\n");
@@ -38,7 +51,7 @@ type Props = {
 export default function JobResultsTable({ 
   jobs, 
   density = "comfortable",
-  visibleColumns = ["title", "company", "location"]
+  visibleColumns = ["title", "company", "location", "score"]
 }: Props) {
   const [exporting, setExporting] = useState(false);
 
@@ -83,6 +96,9 @@ export default function JobResultsTable({
               {visibleColumns.includes("location") && (
                 <th className={`${cellPadding} text-left`}>Location</th>
               )}
+              {visibleColumns.includes("score") && (
+                <th className={`${cellPadding} text-left`}>Match Score</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -106,12 +122,28 @@ export default function JobResultsTable({
                 {visibleColumns.includes("location") && (
                   <td className={cellPadding}>{job.location || 'N/A'}</td>
                 )}
+                {visibleColumns.includes("score") && job.score !== undefined && (
+                  <td className={cellPadding}>
+                    <TooltipProvider>
+                      <Tooltip delayDuration={200}>
+                        <TooltipTrigger asChild>
+                           <div className="flex items-center">
+                             <span className="font-semibold">{job.score}%</span>
+                           </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-sm">{job.reasoning}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </td>
+                )}
               </tr>
             ))}
             {jobs.length === 0 && (
               <tr>
                 <td colSpan={visibleColumns.length} className={`${cellPadding} text-center text-muted-foreground h-24`}>
-                  No jobs found. Scrape some companies to get started!
+                  No jobs to display.
                 </td>
               </tr>
             )}

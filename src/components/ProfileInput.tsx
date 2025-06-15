@@ -1,9 +1,10 @@
-
 import { useForm } from "react-hook-form";
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-type Props = { onSubmit: (profile: any) => void };
+type Props = { 
+  onSubmit: (profile: any) => void;
+  isLoading: boolean;
+};
 
 const DEFAULTS = {
   preferredTitle: "",
@@ -13,16 +14,11 @@ const DEFAULTS = {
   remotePreference: "Any",
 };
 
-export default function ProfileInput({ onSubmit }: Props) {
+export default function ProfileInput({ onSubmit, isLoading }: Props) {
   const { register, handleSubmit, reset } = useForm({ defaultValues: DEFAULTS });
-  const [loading, setLoading] = useState(false);
 
   function onFormSubmit(profile: any) {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      onSubmit(profile);
-    }, 500); // Simulate backend processing
+    onSubmit(profile);
   }
   return (
     <form
@@ -106,8 +102,8 @@ export default function ProfileInput({ onSubmit }: Props) {
         />
         <span className="text-xs text-muted-foreground">(Resume parsing available in full version)</span>
       </div>
-      <Button disabled={loading} className="mt-2 w-full">
-        {loading ? "Analyzing profile..." : "Find Jobs"}
+      <Button disabled={isLoading} className="mt-2 w-full">
+        {isLoading ? "Analyzing jobs..." : "Find Matched Jobs"}
       </Button>
     </form>
   );
