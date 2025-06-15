@@ -27,8 +27,19 @@ const Index = () => {
     setCurrentPage(1);
 
     try {
+      const llmProvider = localStorage.getItem("llmProvider") || "gemini";
+      const llmApiKey = localStorage.getItem("llmApiKey");
+      const llmLocalUrl = localStorage.getItem("llmLocalUrl");
+
       const { data, error } = await supabase.functions.invoke('analyze-jobs', {
-        body: { profile },
+        body: {
+          profile,
+          llmConfig: {
+            provider: llmProvider,
+            apiKey: llmApiKey,
+            url: llmLocalUrl,
+          },
+        },
       });
 
       if (error) throw error;

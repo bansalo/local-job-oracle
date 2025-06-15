@@ -16,14 +16,18 @@ serve(async (req) => {
   }
 
   try {
-    const { profile } = await req.json()
+    const { profile, llmConfig } = await req.json()
     if (!profile) {
       throw new Error('Profile data is required')
     }
     
+    const provider = llmConfig?.provider || 'gemini';
     let resumeText = null;
-    if (profile.resumeUrl) {
-      console.log(`Processing resume from: ${profile.resumeUrl}`);
+
+    // Only attempt resume processing if a resumeUrl is provided AND we are using Gemini.
+    // Local LLM setup for file parsing is more complex and is skipped for now.
+    if (profile.resumeUrl && provider === 'gemini') {
+      console.log(`Processing resume from: ${profile.resumeUrl} using Gemini`);
       try {
         const fileResponse = await fetch(profile.resumeUrl);
         if (!fileResponse.ok) {
@@ -79,6 +83,8 @@ serve(async (req) => {
         console.error("Error processing resume:", e.message);
         // Don't fail the whole process, just proceed without resume text
       }
+    } else if (profile.resumeUrl) {
+      console.log(`Skipping resume processing for local LLM provider: ${provider}`);
     }
 
 
@@ -102,10 +108,8 @@ serve(async (req) => {
       })
     }
     
-    const geminiAnalysisUrl = `${GEMINI_API_URL_BASE}/${ANALYSIS_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-    
     const analysisResults = await Promise.allSettled(jobs.map(async (job) => {
-      const prompt = `
+      const basePrompt = `
         You are an expert ATS resume screener. Analyze this job posting for a candidate.
         
         Candidate Profile:
@@ -114,7 +118,7 @@ serve(async (req) => {
         - Preferred Location: ${profile.location}
         - Salary Expectation: ${profile.salary}
         - Remote Preference: ${profile.remotePreference}
-        ${resumeText ? `\nCandidate's Full Resume:\n---RESUME---\n${resumeText}\n---END RESUME---` : ''}
+        ${resumeText ? `\nCandidate's Full Resume:\n---RESUME---\n${resumeText}\n---END RESUME---` : '\n(Candidate resume not provided for this analysis.)'}
 
         Job Details:
         - Title: ${job.title}
@@ -129,31 +133,64 @@ serve(async (req) => {
 
         Return ONLY the JSON object. Example:
         {"match_score": 85, "reasoning": "The candidate's resume shows strong experience with React and Python, as listed in the job description. The preferred location also aligns.", "is_match": true}
-      `
+      `;
 
-      const geminiResponse = await fetch(geminiAnalysisUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-              responseMimeType: "application/json",
-          }
-        }),
-      })
+      let analysis;
 
-      if (!geminiResponse.ok) {
-        throw new Error(`Gemini API request failed for job ${job.id}`)
+      if (provider === 'local' && llmConfig?.url) {
+        console.log(`Analyzing job ${job.id} using Ollama at ${llmConfig.url}`);
+        const ollamaResponse = await fetch(new URL('/api/chat', llmConfig.url).toString(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'llama3',
+            messages: [{ role: 'user', content: basePrompt }],
+            format: 'json',
+            stream: false,
+          }),
+        });
+
+        if (!ollamaResponse.ok) {
+          const errorText = await ollamaResponse.text();
+          throw new Error(`Ollama API request failed for job ${job.id}: ${errorText}`);
+        }
+
+        const ollamaData = await ollamaResponse.json();
+        const analysisText = ollamaData.message?.content;
+
+        if (!analysisText) {
+          throw new Error(`Ollama did not return parsable text for job ${job.id}.`);
+        }
+        analysis = JSON.parse(analysisText);
+      } else {
+        console.log(`Analyzing job ${job.id} using Gemini.`);
+        const geminiApiKey = llmConfig?.apiKey || GEMINI_API_KEY;
+        if (!geminiApiKey) throw new Error("Gemini API key is required.");
+        
+        const geminiAnalysisUrl = `${GEMINI_API_URL_BASE}/${ANALYSIS_MODEL}:generateContent?key=${geminiApiKey}`;
+        const geminiResponse = await fetch(geminiAnalysisUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: basePrompt }] }],
+            generationConfig: {
+                responseMimeType: "application/json",
+            }
+          }),
+        });
+
+        if (!geminiResponse.ok) {
+          throw new Error(`Gemini API request failed for job ${job.id}`);
+        }
+
+        const geminiData = await geminiResponse.json();
+        const analysisText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (!analysisText) {
+          throw new Error(`Gemini did not return parsable text for job ${job.id}.`);
+        }
+        analysis = JSON.parse(analysisText);
       }
-
-      const geminiData = await geminiResponse.json()
-      const analysisText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-
-      if (!analysisText) {
-        throw new Error(`Gemini did not return parsable text for job ${job.id}.`)
-      }
-      
-      const analysis = JSON.parse(analysisText)
 
       await supabaseAdmin
         .from('jobs')
@@ -161,7 +198,7 @@ serve(async (req) => {
         .eq('id', job.id)
 
       return { ...job, ai_analysis: analysis }
-    }))
+    }));
 
     const successfulAnalyses = analysisResults
       .filter(result => result.status === 'fulfilled')
