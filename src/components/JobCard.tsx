@@ -2,8 +2,8 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MapPin, Building, DollarSign, ExternalLink, Clock } from "lucide-react";
-import { Job } from "./MockData";
+import { MapPin, Building, ExternalLink, Clock } from "lucide-react";
+import { type Job } from "./JobResultsTable";
 
 type Props = {
   job: Job;
@@ -17,7 +17,7 @@ export default function JobCard({ job, density }: Props) {
     <Card className="hover:shadow-md transition-shadow cursor-pointer">
       <CardHeader className={`${isCompact ? "pb-2" : "pb-4"}`}>
         <div className="flex justify-between items-start">
-          <div className="flex-1">
+          <div className="flex-1 pr-4">
             <a 
               href={job.link} 
               target="_blank" 
@@ -31,9 +31,11 @@ export default function JobCard({ job, density }: Props) {
               {job.company}
             </div>
           </div>
-          <Badge className="bg-blue-600/90 text-white">
-            {job.score}
-          </Badge>
+          {job.score !== undefined && (
+            <Badge className="bg-blue-600/90 text-white shrink-0">
+              {job.score}%
+            </Badge>
+          )}
         </div>
       </CardHeader>
       <CardContent className={`${isCompact ? "pt-0" : ""}`}>
@@ -41,7 +43,7 @@ export default function JobCard({ job, density }: Props) {
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <MapPin className="h-3 w-3" />
-              {job.location}
+              {job.location || 'N/A'}
             </div>
             {job.remote && (
               <Badge variant="outline" className="text-xs">
@@ -50,17 +52,12 @@ export default function JobCard({ job, density }: Props) {
             )}
           </div>
           
-          {job.compensation && (
-            <div className="flex items-center gap-1 text-sm">
-              <DollarSign className="h-3 w-3 text-green-600" />
-              <span className="text-green-600 font-medium">{job.compensation}</span>
-            </div>
-          )}
-          
           <div className="flex items-center justify-between pt-2">
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Clock className="h-3 w-3" />
-              {job.source}
+              {job.source && <>
+                <Clock className="h-3 w-3" />
+                <span>{job.source}</span>
+              </>}
             </div>
             <Button variant="outline" size="sm" asChild>
               <a href={job.link} target="_blank" rel="noopener noreferrer">
