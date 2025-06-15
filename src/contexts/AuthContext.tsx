@@ -38,6 +38,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (_event === 'SIGNED_OUT') {
         navigate('/auth');
       }
+      if (_event === 'PASSWORD_RECOVERY') {
+        navigate('/reset-password');
+      }
     });
 
     return () => {

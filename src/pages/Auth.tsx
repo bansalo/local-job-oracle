@@ -23,6 +23,16 @@ import {
 } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
@@ -31,6 +41,8 @@ const formSchema = z.object({
 
 const AuthPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
   const navigate = useNavigate();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -62,6 +74,27 @@ const AuthPage = () => {
         toast.success('Signed in successfully!');
         navigate('/');
       }
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!resetEmail) {
+      toast.error('Please enter your email.');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast.success('Check your email for the password reset link.');
+      setForgotPasswordOpen(false);
+      setResetEmail('');
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -124,6 +157,47 @@ const AuthPage = () => {
               </div>
             </form>
           </Form>
+          <div className="mt-4 text-center text-sm">
+            <Dialog open={forgotPasswordOpen} onOpenChange={setForgotPasswordOpen}>
+              <DialogTrigger asChild>
+                <Button variant="link" className="p-0 h-auto font-normal">
+                  Forgot your password?
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Reset Password</DialogTitle>
+                  <DialogDescription>
+                    Enter your email address and we'll send you a link to reset your password.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="reset-email" className="text-right">
+                      Email
+                    </Label>
+                    <Input
+                      id="reset-email"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      className="col-span-3"
+                      placeholder="you@example.com"
+                      type="email"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    type="submit"
+                    onClick={handlePasswordReset}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Sending...' : 'Send Reset Link'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </CardContent>
       </Card>
     </div>
