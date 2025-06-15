@@ -40,7 +40,7 @@ const Index = () => {
         company: job.companies?.name || 'Unknown',
         location: job.location,
         link: job.job_url,
-        score: job.ai_analysis.score,
+        score: job.ai_analysis.match_score,
         reasoning: job.ai_analysis.reasoning,
         remote: !!job.location?.toLowerCase().includes('remote'),
         source: 'AI Match'

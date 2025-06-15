@@ -7,6 +7,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Progress } from "@/components/ui/progress";
 
 export type Job = {
   id: string;
@@ -129,8 +130,9 @@ export default function JobResultsTable({
                     <TooltipProvider>
                       <Tooltip delayDuration={200}>
                         <TooltipTrigger asChild>
-                           <div className="flex items-center">
-                             <span className="font-semibold">{job.score}%</span>
+                           <div className="flex items-center gap-2">
+                             <Progress value={job.score} className="h-2 w-20" />
+                             <span className="font-semibold w-8 text-right">{job.score}%</span>
                            </div>
                         </TooltipTrigger>
                         <TooltipContent>
