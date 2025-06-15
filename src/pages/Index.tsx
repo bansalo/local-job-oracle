@@ -1,4 +1,3 @@
-
 import Header from "@/components/Header";
 import ProfileInput from "@/components/ProfileInput";
 import JobResultsTable from "@/components/JobResultsTable";
@@ -7,6 +6,7 @@ import LayoutControls from "@/components/LayoutControls";
 import SearchBar from "@/components/SearchBar";
 import JobCard from "@/components/JobCard";
 import JobPagination from "@/components/JobPagination";
+import LLMConfig from "@/components/LLMConfig";
 import { useState, useMemo } from "react";
 import { Job, MOCK_JOBS } from "@/components/MockData";
 import { Button } from "@/components/ui/button";
@@ -110,6 +110,7 @@ const Index = () => {
             {!sidebarCollapsed && (
               <>
                 <ProfileInput onSubmit={handleProfileSubmit} />
+                <LLMConfig />
                 <JobFilters onFiltersChange={setJobFilters} isCollapsed={false} />
                 <LayoutControls
                   viewMode={viewMode}
