@@ -2,3 +2,7 @@
 project_id = "bjbejdflzfxiidwldpyr"
 
 [functions.find-career-page]
+  verify_jwt = false
+
+[functions.scrape-jobs]
+  verify_jwt = false

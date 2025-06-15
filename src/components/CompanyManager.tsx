@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Loader2, Link, Search, XCircle } from 'lucide-react';
+import { Loader2, Link, Search, XCircle, FileText } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 
 const fetchCompanies = async () => {
   const { data, error } = await supabase.from("companies").select("*").order("created_at", { ascending: false });
@@ -33,6 +33,7 @@ const CompanyManager = () => {
   const { data: companies, isLoading, isError } = useQuery({
     queryKey: ["companies"],
     queryFn: fetchCompanies,
+    refetchInterval: 30000, // Refetch every 30 seconds
   });
 
   const addCompanyMutation = useMutation({
@@ -72,12 +73,47 @@ const CompanyManager = () => {
     },
   });
 
+  const scrapeJobsMutation = useMutation({
+    mutationFn: async (companyId: string) => {
+        const { error } = await supabase.functions.invoke('scrape-jobs', {
+            body: { companyId },
+        });
+        if (error) throw new Error(error.message);
+        return companyId;
+    },
+    onSuccess: (companyId) => {
+        toast.success("Scraping jobs... The list will update automatically.");
+        queryClient.setQueryData(['companies'], (oldData: any[] | undefined) =>
+            oldData ? oldData.map((c) => c.id === companyId ? { ...c, status: 'scraping' } : c) : []
+        );
+        setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ["companies"] });
+        }, 15000); 
+    },
+    onError: (error: Error, companyId) => {
+        toast.error(`Failed to scrape jobs: ${error.message}`);
+        queryClient.setQueryData(['companies'], (oldData: any[] | undefined) =>
+            oldData ? oldData.map((c) => c.id === companyId ? { ...c, status: 'error' } : c) : []
+        );
+    },
+  });
+
+
   const handleAddCompany = (e: React.FormEvent) => {
     e.preventDefault();
     if (newCompanyName.trim()) {
       addCompanyMutation.mutate(newCompanyName.trim());
     }
   };
+
+  const isActionPending = (companyId: string) => {
+    return (
+        (findCareerPageMutation.isPending && findCareerPageMutation.variables === companyId) ||
+        (scrapeJobsMutation.isPending && scrapeJobsMutation.variables === companyId) ||
+        company.status === 'processing' ||
+        company.status === 'scraping'
+    );
+  }
 
   return (
     <Card>
@@ -104,8 +140,8 @@ const CompanyManager = () => {
                     <TableRow>
                     <TableHead>Company</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Career Page</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
+                    <TableHead>Last Scraped</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -120,36 +156,49 @@ const CompanyManager = () => {
                     ) : companies && companies.length > 0 ? (
                         companies.map((company) => (
                             <TableRow key={company.id}>
-                                <TableCell className="font-medium">{company.name}</TableCell>
+                                <TableCell className="font-medium">
+                                    {company.career_page_url ? (
+                                        <a href={company.career_page_url} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
+                                            {company.name} <Link className="h-3 w-3 text-muted-foreground"/>
+                                        </a>
+                                    ) : (
+                                        company.name
+                                    )}
+                                </TableCell>
                                 <TableCell className="capitalize">
                                     <div className="flex items-center gap-2">
-                                        {company.status === 'processing' && <Loader2 className="h-4 w-4 animate-spin" />}
+                                        {(company.status === 'processing' || company.status === 'scraping') && <Loader2 className="h-4 w-4 animate-spin" />}
                                         {company.status === 'error' && <XCircle className="h-4 w-4 text-destructive" />}
-                                        {company.status === 'found' && <Link className="h-4 w-4 text-primary" />}
+                                        {company.status === 'found' && <Search className="h-4 w-4 text-blue-500" />}
+                                        {company.status === 'scraped' && <FileText className="h-4 w-4 text-green-500" />}
                                         <span>{company.status}</span>
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    {company.career_page_url ? (
-                                        <a href={company.career_page_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                                            Visit Link
-                                        </a>
+                                    {company.jobs_scraped_at ? (
+                                        <span className="text-muted-foreground text-sm">
+                                            {formatDistanceToNow(new Date(company.jobs_scraped_at), { addSuffix: true })}
+                                        </span>
                                     ) : (
-                                        <span className="text-muted-foreground">N/A</span>
+                                        <span className="text-muted-foreground">Never</span>
                                     )}
                                 </TableCell>
-                                <TableCell className="text-right">
+                                <TableCell className="text-right space-x-2">
                                     <Button
                                       variant="outline"
                                       size="sm"
                                       onClick={() => findCareerPageMutation.mutate(company.id)}
-                                      disabled={
-                                        (findCareerPageMutation.isPending && findCareerPageMutation.variables === company.id) ||
-                                        company.status !== 'pending'
-                                      }
+                                      disabled={isActionPending(company.id) || company.status !== 'pending'}
                                     >
-                                      <Search className="h-4 w-4 mr-2" />
-                                      Find
+                                      <Search className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => scrapeJobsMutation.mutate(company.id)}
+                                      disabled={isActionPending(company.id) || company.status !== 'found'}
+                                    >
+                                      <FileText className="h-4 w-4" />
                                     </Button>
                                 </TableCell>
                             </TableRow>

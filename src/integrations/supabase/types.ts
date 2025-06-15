@@ -14,6 +14,7 @@ export type Database = {
           career_page_url: string | null
           created_at: string
           id: string
+          jobs_scraped_at: string | null
           name: string
           status: string
           updated_at: string
@@ -22,6 +23,7 @@ export type Database = {
           career_page_url?: string | null
           created_at?: string
           id?: string
+          jobs_scraped_at?: string | null
           name: string
           status?: string
           updated_at?: string
@@ -30,11 +32,59 @@ export type Database = {
           career_page_url?: string | null
           created_at?: string
           id?: string
+          jobs_scraped_at?: string | null
           name?: string
           status?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      jobs: {
+        Row: {
+          ai_analysis: Json | null
+          company_id: string
+          created_at: string
+          description: string | null
+          id: string
+          job_url: string
+          location: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          ai_analysis?: Json | null
+          company_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          job_url: string
+          location?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          ai_analysis?: Json | null
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          job_url?: string
+          location?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
