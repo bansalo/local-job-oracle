@@ -122,7 +122,7 @@ serve(async (req) => {
 
         Job Details:
         - Title: ${job.title}
-        - Company: ${job.companies.name}
+        - Company: ${job.companies?.name || 'Not specified'}
         - Location: ${job.location || 'Not specified'}
         - Description: ${job.description || 'Not provided'}
 
@@ -135,7 +135,7 @@ serve(async (req) => {
         {"match_score": 85, "reasoning": "The candidate's resume shows strong experience with React and Python, as listed in the job description. The preferred location also aligns.", "is_match": true}
       `;
 
-      let analysis;
+      let analysisText;
 
       if (provider === 'local' && llmConfig?.url) {
         console.log(`Analyzing job ${job.id} using Ollama at ${llmConfig.url}`);
@@ -156,12 +156,7 @@ serve(async (req) => {
         }
 
         const ollamaData = await ollamaResponse.json();
-        const analysisText = ollamaData.message?.content;
-
-        if (!analysisText) {
-          throw new Error(`Ollama did not return parsable text for job ${job.id}.`);
-        }
-        analysis = JSON.parse(analysisText);
+        analysisText = ollamaData.message?.content;
       } else {
         console.log(`Analyzing job ${job.id} using Gemini.`);
         const geminiApiKey = llmConfig?.apiKey || GEMINI_API_KEY;
@@ -184,12 +179,23 @@ serve(async (req) => {
         }
 
         const geminiData = await geminiResponse.json();
-        const analysisText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+        analysisText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+      }
 
-        if (!analysisText) {
-          throw new Error(`Gemini did not return parsable text for job ${job.id}.`);
+      if (!analysisText) {
+        throw new Error(`LLM did not return parsable text for job ${job.id}.`);
+      }
+      
+      let analysis;
+      try {
+        const jsonString = analysisText.match(/\{[\s\S]*\}/)?.[0];
+        if (!jsonString) {
+          throw new Error("No JSON object found in the response.");
         }
-        analysis = JSON.parse(analysisText);
+        analysis = JSON.parse(jsonString);
+      } catch (error) {
+        console.error(`Error parsing JSON for job ${job.id}:`, error.message, "Raw response:", analysisText);
+        throw new Error(`Failed to parse analysis from LLM for job ${job.id}.`);
       }
 
       await supabaseAdmin
