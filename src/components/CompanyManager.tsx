@@ -106,10 +106,10 @@ const CompanyManager = () => {
     }
   };
 
-  const isActionPending = (companyId: string) => {
+  const isActionPending = (company: { id: string, status: string }) => {
     return (
-        (findCareerPageMutation.isPending && findCareerPageMutation.variables === companyId) ||
-        (scrapeJobsMutation.isPending && scrapeJobsMutation.variables === companyId) ||
+        (findCareerPageMutation.isPending && findCareerPageMutation.variables === company.id) ||
+        (scrapeJobsMutation.isPending && scrapeJobsMutation.variables === company.id) ||
         company.status === 'processing' ||
         company.status === 'scraping'
     );
@@ -188,7 +188,7 @@ const CompanyManager = () => {
                                       variant="outline"
                                       size="sm"
                                       onClick={() => findCareerPageMutation.mutate(company.id)}
-                                      disabled={isActionPending(company.id) || company.status !== 'pending'}
+                                      disabled={isActionPending(company) || company.status !== 'pending'}
                                     >
                                       <Search className="h-4 w-4" />
                                     </Button>
@@ -196,7 +196,7 @@ const CompanyManager = () => {
                                       variant="outline"
                                       size="sm"
                                       onClick={() => scrapeJobsMutation.mutate(company.id)}
-                                      disabled={isActionPending(company.id) || company.status !== 'found'}
+                                      disabled={isActionPending(company) || company.status !== 'found'}
                                     >
                                       <FileText className="h-4 w-4" />
                                     </Button>
