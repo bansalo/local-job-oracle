@@ -1,0 +1,22 @@
+
+INSERT INTO public.companies (name, career_page_url, status) VALUES
+('Pangian', 'https://pangian.com', 'pending'),
+('WeWorkRemotely', 'https://weworkremotely.com', 'pending'),
+('ARC', 'https://arc.dev', 'pending'),
+('Remotive', 'https://remotive.com', 'pending'),
+('JustRemote', 'https://justremote.co/', 'pending'),
+('AngelList', 'https://angel.co/', 'pending'),
+('Jobspresso', 'https://jobspresso.co/', 'pending'),
+('DailyRemote', 'https://dailyremote.com/', 'pending'),
+('Working Nomads', 'https://www.workingnomads.com/', 'pending'),
+('RemoteLeaf', 'https://remoteleaf.com/', 'pending'),
+('Freelance', 'https://www.freelance.com/', 'pending'),
+('Upwork', 'https://www.upwork.com/', 'pending'),
+('Solid Gigs', 'https://solidgigs.com', 'pending'),
+('Snagajob', 'https://www.snagajob.com/', 'pending'),
+('LinkedIn', 'https://www.linkedin.com/', 'pending'),
+('ServiceScape', 'https://www.servicescape.com/', 'pending'),
+('Craigslist', 'https://www.craigslist.org/', 'pending'),
+('CoolWorks', 'https://www.coolworks.com/', 'pending'),
+('Contena', 'https://www.contena.co', 'pending'),
+('Fiverr', 'https://www.fiverr.com/', 'pending');
