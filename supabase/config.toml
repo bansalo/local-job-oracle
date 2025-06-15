@@ -6,3 +6,6 @@ project_id = "bjbejdflzfxiidwldpyr"
 
 [functions.scrape-jobs]
   verify_jwt = false
+
+[functions.analyze-jobs]
+  verify_jwt = false
